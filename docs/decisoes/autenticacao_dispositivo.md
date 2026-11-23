@@ -5,18 +5,23 @@
 
 ## Contexto
 
-Só dispositivos cadastrados podem enviar leituras (ver [`requisitos.md`](../requisitos.md), seção 1). A API precisa distinguir um ESP32 legítimo de qualquer outro cliente que tente enviar dados.
+Só dispositivos cadastrados podem enviar leituras (ver [`requisitos.md`](../requisitos.md), seção 1). O ESP32 precisa enviar um identificador próprio e autenticar-se na API sem que o firmware saiba gerar tokens.
 
 ## Decisão
 
-- Cada ESP32 carrega no firmware um **código gerador de token**, que produz tokens em um **formato próprio da aplicação**.
-- A API só aceita tokens nesse formato. Um dispositivo sem o código gerador não produz um token válido e é rejeitado na autenticação.
-- Depois que o token é gerado, o dispositivo é **registrado na aplicação** com o token e um **label**. O label é um nome para identificar o dispositivo e, no futuro, será o nome da casa.
-- Leituras de dispositivos não registrados são rejeitadas.
+- O token é gerado antes do provisionamento por um script administrativo mínimo, fora do ESP32, e gravado no firmware.
+- A API guarda apenas o hash do token, usando recursos padrão sempre que possível.
+- O script mostra o token uma única vez e registra o dispositivo como ainda sem vínculo a `device_id`.
+- O ESP32 envia seu identificador do chip/MAC no campo `device_id` e o token em `Authorization: Bearer <token>`.
+- No primeiro uso, a API compara o hash e vincula o token ao `device_id` recebido.
+- Depois do vínculo, o mesmo token usado por outro `device_id` é rejeitado.
+- O `label` fica para uma versão futura e não participa deste fluxo.
+- Revogação ou troca de vínculo não possui tela nesta versão e pode ser feita por processo administrativo futuro.
 
 ## Consequências
 
-- Nenhum dado entra na API sem passar pela autenticação.
-- A segurança depende do sigilo do código gerador: quem conseguir extraí-lo do firmware consegue gerar tokens válidos. Isso torna importante proteger o firmware e fazer o gerador depender de um segredo, e não só do formato do token.
-- O label desacopla o dispositivo da casa: a ligação com a casa pode ser feita depois, sem trocar o token.
-- Perder ou trocar um ESP32 exige registrar um novo dispositivo.
+- O ganho é revogação simples por registro de token e ausência de gerador no firmware.
+- O custo é o token ficar gravado no firmware e ser gerado por dispositivo; a proteção do arquivo de configuração e do provisionamento é importante.
+- Excluir ou trocar o firmware exige novo provisionamento do token, porque o token não é derivado do hardware.
+- O primeiro uso vincula o token de forma definitiva nesta v1; há que evitar reutilizar ou copiar o mesmo token entre equipamentos.
+- O hash impede que o banco exponha o token em texto, embora o sigilo ainda dependa do token físico no ESP32.
