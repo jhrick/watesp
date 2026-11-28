@@ -10,10 +10,10 @@ Só dispositivos cadastrados podem enviar leituras (ver [`requisitos.md`](../req
 ## Decisão
 
 - O token é gerado antes do provisionamento por um script administrativo mínimo, fora do ESP32, e gravado no firmware.
-- A API guarda apenas o hash do token, usando recursos padrão sempre que possível.
-- O script mostra o token uma única vez e registra o dispositivo como ainda sem vínculo a `device_id`.
+- No momento da geração, o script grava no banco apenas o hash do token e o mostra em texto uma única vez; o registro fica inicialmente sem vínculo a `device_id`.
+- Ao receber uma autenticação, a API calcula o hash do token enviado e verifica se ele corresponde a um hash já registrado no banco. Só então registra o uso do token ou realiza o vínculo.
 - O ESP32 envia seu identificador do chip/MAC no campo `device_id` e o token em `Authorization: Bearer <token>`.
-- No primeiro uso, a API compara o hash e vincula o token ao `device_id` recebido.
+- No primeiro uso válido, a API grava o `device_id` recebido e vincula o token a esse dispositivo.
 - Depois do vínculo, o mesmo token usado por outro `device_id` é rejeitado.
 - O `label` fica para uma versão futura e não participa deste fluxo.
 - Revogação ou troca de vínculo não possui tela nesta versão e pode ser feita por processo administrativo futuro.
@@ -21,6 +21,7 @@ Só dispositivos cadastrados podem enviar leituras (ver [`requisitos.md`](../req
 ## Consequências
 
 - O ganho é revogação simples por registro de token e ausência de gerador no firmware.
+- O registro prévio do hash permite verificar que o token foi gerado pela aplicação; sem essa verificação, qualquer token enviado poderia ser aceito e gravado no banco.
 - O custo é o token ficar gravado no firmware e ser gerado por dispositivo; a proteção do arquivo de configuração e do provisionamento é importante.
 - Excluir ou trocar o firmware exige novo provisionamento do token, porque o token não é derivado do hardware.
 - O primeiro uso vincula o token de forma definitiva nesta v1; há que evitar reutilizar ou copiar o mesmo token entre equipamentos.
